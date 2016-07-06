@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% import "bootstrap/wtf.html" as wtf %}
+
+{% block title %}Compass - Register{% endblock %}
+
+{% block page_content %}
+<div class="reg-form">
+  {{ wtf.quick_form(reg_form) }}
+</div>
+{% endblock %}

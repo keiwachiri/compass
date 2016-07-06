@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block page_content %}
+<div class="page-header">
+  <h1>
+    {% if g.user %}
+      {{ g.user.username }}, welcome back to Compass!
+    {% else %}
+      Welcome to Compass!
+    {% endif %}
+  </h1>
+</div>
+{% endblock %}
