@@ -12,6 +12,8 @@ from .models import User
 def load_user():
     username = session.get('username', False)
     if username:
+        # TODO - process the case where there is no user, which means session
+        # is not valid, needs to be updated
         g.user = User.query.filter_by(username=username).first()
 
 
@@ -33,6 +35,7 @@ def register():
         db.session.add(user)
         db.session.commit()
         token = user.generate_confirmation_token()
+        # TODO - add logging of sent-mails
         send_email(user.email, 'Confirm Your Account',
                    'auth/email/confirm', user=user, token=token)
         flash("A confirmation mail has been sent to you!")
@@ -42,6 +45,9 @@ def register():
 
 @auth.route('/login', methods=['GET', 'POST'])
 def login():
+    if session.get('username', False):
+        flash("You are already logged in!")
+        return redirect(url_for('main.index'))
     log_form = LoginForm()
     if log_form.validate_on_submit():
         user = User.query.filter_by(email=log_form.email.data).first()
@@ -51,7 +57,9 @@ def login():
             session['username'] = user.username
             flash("Login successful!")
             return redirect(url_for("main.index"))
-        flash("Invalid username or password")
+        else:
+            flash("Invalid username or password")
+            return render_template("auth/login.html", log_form=log_form), 401
     return render_template("auth/login.html", log_form=log_form)
 
 
@@ -72,12 +80,15 @@ def logout():
 def confirm(token):
     if g.get('user', False):
         if g.user.confirmed:
-            return redirect(url_for("main.index"))
+            flash("You have already confirmed your account.")
         elif g.user.confirm(token):
             flash("You have confirmed your account. Thanks!")
         else:
             flash("The confirmation link is invalid or has expired.")
-    return redirect(url_for("main.index"))
+        return redirect(url_for("main.index"))
+    else:
+        flash("You have to be logged in first!")
+        return redirect(url_for('auth.login'))
 
 
 @auth.route('/confirm')
@@ -88,7 +99,7 @@ def resend_confirmation():
             token = user.generate_confirmation_token()
             send_email(user.email, 'Confirm Your Accout', 'auth/email/confirm',
                        user=user, token=token)
-            flash("A new confirmation has been senr to you by email.")
+            flash("A new confirmation has been sent to you by email.")
         else:
             flash("You have already confirmed your account.")
             return redirect(url_for("main.index"))
