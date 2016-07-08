@@ -188,5 +188,32 @@ class ConfirmTokenTest(ControllerTest):
         self.assertRedirects(resp, url_for('auth.login'))
 
 
+class UnconfirmedTest(ControllerTest):
+    def test_unconfirmed_renders_unconfirmed_template(self):
+        u = User(username='user', password='password', email='mail@mail.com')
+        db.session.add(u)
+        db.session.commit()
+        with self.app.test_client() as c:
+            g.user = u
+            resp = c.get(url_for('auth.unconfirmed'))
+            self.assert200(resp)
+            self.assertTemplateUsed('auth/unconfirmed.html')
+
+    def test_unconfirmed_redirects_to_main_if_account_is_confirmed(self):
+        u = User(username='user', password='password', email='mail@mail.com')
+        u.confirmed = True
+        db.session.add(u)
+        db.session.commit()
+        with self.app.test_client() as c:
+            g.user = u
+            resp = c.get(url_for('auth.unconfirmed'))
+            self.assertRedirects(resp, url_for('main.index'))
+
+    def test_unconfirmed_redirects_to_main_if_no_user_loaded(self):
+        with self.app.test_client() as c:
+            resp = c.get(url_for('auth.unconfirmed'))
+            self.assertRedirects(resp, url_for('main.index'))
+
+
 if __name__ == "__main__":
     unittest.main()

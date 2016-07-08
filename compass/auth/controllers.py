@@ -102,14 +102,14 @@ def resend_confirmation():
             flash("A new confirmation has been sent to you by email.")
         else:
             flash("You have already confirmed your account.")
-            return redirect(url_for("main.index"))
-    else:
-        return redirect(url_for("main.index"))
+    return redirect(url_for("main.index"))
 
 
 @auth.route('/unconfirmed')
 def unconfirmed():
     if g.get('user', False):
-        if g.user.confirmed:
-            return redirect(url_for("main.index"))
-    return render_template("auth/unconfirmed.html", user=g.user)
+        if not g.user.confirmed:
+            return render_template("auth/unconfirmed.html", user=g.user)
+        else:
+            flash("You have already confirmed your account!")
+    return redirect(url_for("main.index"))
