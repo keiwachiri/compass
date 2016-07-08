@@ -4,8 +4,9 @@ from flask import (render_template, url_for, redirect, request, session, g,
 from .. import db
 from ..email import send_email
 from . import auth
+from .decorators import login_required
 from .forms import (LoginForm, RegistrationForm, PasswordResetRequestForm,
-                    PasswordResetForm)
+                    PasswordResetForm, ChangePasswordForm)
 from .models import User
 
 
@@ -65,14 +66,13 @@ def login():
 
 
 @auth.route('/logout')
+@login_required(redirect_to='main.index')
 def logout():
     if session.get('username', False):
         session.pop('username')
         flash("Successfully logged out!")
         if session.permanent:
             session.permanent = False
-    else:
-        flash("You are not logged in!")
     return redirect(url_for("main.index"))
 
 
@@ -151,3 +151,18 @@ def password_reset(token):
     else:
         flash("You are currently logged in!")
         return redirect(url_for('main.index'))
+
+
+@auth.route('/change_password', methods=['GET', 'POST'])
+@login_required(redirect_to='auth.login')
+def change_password():
+    user = g.get('user', False)
+    form = ChangePasswordForm()
+    if form.validate_on_submit():
+        user.password = form.password.data
+        db.session.add(user)
+        flash("Your password has been updated")
+        return redirect(url_for("main.index"))
+    else:
+        flash("Invalid password.")
+    return render_template("auth/change_password.html", form=form)

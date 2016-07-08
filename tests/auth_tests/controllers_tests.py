@@ -100,9 +100,12 @@ class LoginTest(ControllerTest):
 
 class LogoutTest(ControllerTest):
     def test_logout_cleans_the_session_when_logged_in(self):
+        u = User(username='user', password='password', email='mail@mail.com')
+        db.session.add(u)
+        db.session.commit()
         with self.app.test_client() as c:
             with c.session_transaction() as sess:
-                sess['username'] = 'test-user'
+                sess['username'] = 'user'
             resp = c.get(url_for('auth.logout'))
             self.assertRedirects(resp, url_for('main.index'))
             self.assertIsNone(session.get('username', None))
@@ -311,6 +314,30 @@ class PasswordResetTest(ControllerTest):
                           'password2': 'new_password'})
             self.assertRedirects(resp, url_for('main.index'))
 
+
+class ChangePasswordTest(ControllerTest):
+    def create_user(self):
+        self.u = User(username='user', password='password',
+                      email='mail@mail.com')
+        db.session.add(self.u)
+        db.session.commit()
+
+    def test_change_password_renders_template_on_GET(self):
+        self.create_user()
+        with self.app.test_client() as c:
+            g.user = self.u
+            resp = c.get(url_for('auth.change_password'))
+            self.assertTemplateUsed('auth/change_password.html')
+
+    def test_change_password_changes_password_on_POST(self):
+        self.create_user()
+        with self.app.test_client() as c:
+            g.user = self.u
+            resp = c.post(url_for('auth.change_password'),
+                data={'old_password': 'password', 'password': 'new_password',
+                      'password2': 'new_password'})
+            self.assertRedirects(resp, url_for('main.index'))
+            self.assertTrue(self.u.verify_password('new_password'))
 
 
 
