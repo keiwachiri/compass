@@ -4,7 +4,8 @@ from flask import (render_template, url_for, redirect, request, session, g,
 from .. import db
 from ..email import send_email
 from . import auth
-from .forms import LoginForm, RegistrationForm
+from .forms import (LoginForm, RegistrationForm, PasswordResetRequestForm,
+                    PasswordResetForm)
 from .models import User
 
 
@@ -113,3 +114,40 @@ def unconfirmed():
         else:
             flash("You have already confirmed your account!")
     return redirect(url_for("main.index"))
+
+
+@auth.route('/reset', methods=['GET', 'POST'])
+def password_reset_request():
+    if g.get('user', False):
+        flash("You are currently logged in!")
+        return redirect(url_for('main.index'))
+    req_form = PasswordResetRequestForm()
+    if req_form.validate_on_submit():
+        user = User.query.filter_by(email=req_form.email.data).first()
+        if user:
+            token = user.generate_reset_token()
+            send_email(user.email, 'Reset Your Password',
+                       'auth/email/reset_password', user=user, token=token)
+        flash("An email with instructions to reset your password is sent")
+        return redirect(url_for('auth.login'))
+    return render_template('auth/reset_password.html', form=req_form)
+
+
+@auth.route('/reset/<token>', methods=['GET', 'POST'])
+def password_reset(token):
+    if not g.get('user', False):
+        reset_form = PasswordResetForm()
+        if reset_form.validate_on_submit():
+            user = User.query.filter_by(email=reset_form.email.data).first()
+            if user is None:
+                return redirect(url_for('main.index'))
+            if user.reset_password(token, reset_form.password.data):
+                flash("Your password has been updated!")
+                return redirect(url_for('auth.login'))
+            else:
+                flash("Failed to reset password")
+                return redirect(url_for('main.index'))
+        return render_template('auth/reset_password.html', form=reset_form)
+    else:
+        flash("You are currently logged in!")
+        return redirect(url_for('main.index'))

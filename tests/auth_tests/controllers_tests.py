@@ -20,20 +20,12 @@ class ControllerTest(TestCase):
     def setUp(self):
         self.app_context = self.app.app_context()
         self.app_context.push()
-        self.data_setup()
         db.create_all()
 
     def tearDown(self):
-        self.data_removal()
         db.session.remove()
         db.drop_all()
         self.app_context.pop()
-
-    def data_setup(self):
-        pass
-
-    def data_removal(self):
-        pass
 
 
 class RegisterTest(ControllerTest):
@@ -213,6 +205,113 @@ class UnconfirmedTest(ControllerTest):
         with self.app.test_client() as c:
             resp = c.get(url_for('auth.unconfirmed'))
             self.assertRedirects(resp, url_for('main.index'))
+
+
+class PasswordResetRequestTest(ControllerTest):
+    def test_password_reset_request_renders_template_on_GET(self):
+        resp = self.client.get(url_for('auth.password_reset_request'))
+        self.assertTemplateUsed('auth/reset_password.html')
+
+    def test_password_reset_request_redirects_to_auth_login_on_POST(self):
+        u = User(username='user', password='password', email='mail@mail.com')
+        db.session.add(u)
+        db.session.commit()
+        resp = self.client.post(url_for('auth.password_reset_request'),
+                                data={'email': 'mail@mail.com'})
+        self.assertRedirects(resp, url_for('auth.login'))
+
+    def test_password_reset_request_redirects_to_auth_login_on_bad_POST(self):
+        resp = self.client.post(url_for('auth.password_reset_request'),
+                                data={'email': 'non_existant_mail@mail.com'})
+        self.assertRedirects(resp, url_for('auth.login'))
+
+    def test_password_reset_request_redirects_to__index_if_logged_on_GET(self):
+        u = User(username='user', password='password', email='mail@mail.com')
+        db.session.add(u)
+        db.session.commit()
+        with self.app.test_client() as c:
+            g.user = u
+            resp = self.client.get(url_for('auth.password_reset_request'))
+            self.assertRedirects(resp, url_for('main.index'))
+
+    def test_password_reset_request_redirects_to_index_if_logged_on_POST(self):
+        u = User(username='user', password='password', email='mail@mail.com')
+        db.session.add(u)
+        db.session.commit()
+        with self.app.test_client() as c:
+            g.user = u
+            resp = self.client.post(url_for('auth.password_reset_request'),
+                                    data={'email': 'mail@mail.com'})
+            self.assertRedirects(resp, url_for('main.index'))
+
+
+class PasswordResetTest(ControllerTest):
+    def test_password_reset_renders_template_on_GET(self):
+        u = User(username='user', password='password', email='mail@mail.com')
+        db.session.add(u)
+        db.session.commit()
+        token = u.generate_reset_token()
+        resp = self.client.get(url_for('auth.password_reset', token=token))
+        self.assertTemplateUsed('auth/reset_password.html')
+
+    def test_password_reset_resets_password_on_POST(self):
+        u = User(username='user', password='password', email='mail@mail.com')
+        db.session.add(u)
+        db.session.commit()
+        token = u.generate_reset_token()
+        resp = self.client.post(url_for('auth.password_reset', token=token),
+            data={'email': 'mail@mail.com', 'password': 'new_password',
+                  'password2': 'new_password'})
+        self.assertRedirects(resp, url_for('auth.login'))
+        self.assertTrue(u.verify_password('new_password'))
+
+    def test_password_reset_fails_to_reset_on_POST_with_wrong_token(self):
+        u1 = User(username='user1', password='password', email='m1@mail.com')
+        u2 = User(username='user2', password='password', email='m2@mail.com')
+        db.session.add_all([u1, u2])
+        db.session.commit()
+        token = u1.generate_reset_token()
+        resp = self.client.post(url_for('auth.password_reset', token=token),
+                data={'email': 'm2@mail.com', 'password': 'new_password',
+                      'password2': 'new_password'})
+        self.assertRedirects(resp, url_for('main.index'))
+        self.assertTrue(u2.verify_password('password'))
+
+    def test_password_reset_fails_to_reset_on_POST_with_expired_token(self):
+        u = User(username='user', password='password', email='mail@mail.com')
+        db.session.add(u)
+        db.session.commit()
+        token = u.generate_reset_token(expiration=1)
+        time.sleep(2)
+        resp = self.client.post(url_for('auth.password_reset', token=token),
+                data={'email': 'mail@mail.com', 'password': 'new_password',
+                      'password2': 'new_password'})
+        self.assertRedirects(resp, url_for('main.index'))
+        self.assertFalse(u.verify_password('new_password'))
+
+    def test_password_reset_redirects_to_main_on_GET_if_user_logged(self):
+        u = User(username='user', password='password', email='mail@mail.com')
+        db.session.add(u)
+        db.session.commit()
+        token = u.generate_reset_token()
+        with self.app.test_client() as c:
+            g.user = u
+            resp = c.get(url_for('auth.password_reset', token=token))
+            self.assertRedirects(resp, url_for('main.index'))
+
+    def test_password_reset_redirects_to_main_on_POST_if_user_logged(self):
+        u = User(username='user', password='password', email='mail@mail.com')
+        db.session.add(u)
+        db.session.commit()
+        token = u.generate_reset_token()
+        with self.app.test_client() as c:
+            g.user = u
+            resp = c.post(url_for('auth.password_reset', token=token),
+                    data={'email': 'mail@mail.com', 'password': 'new_password',
+                          'password2': 'new_password'})
+            self.assertRedirects(resp, url_for('main.index'))
+
+
 
 
 if __name__ == "__main__":
