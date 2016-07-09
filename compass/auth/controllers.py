@@ -6,7 +6,7 @@ from ..email import send_email
 from . import auth
 from .decorators import login_required
 from .forms import (LoginForm, RegistrationForm, PasswordResetRequestForm,
-                    PasswordResetForm, ChangePasswordForm)
+                    PasswordResetForm, ChangePasswordForm, ChangeEmailForm)
 from .models import User
 
 
@@ -166,3 +166,32 @@ def change_password():
     else:
         flash("Invalid password.")
     return render_template("auth/change_password.html", form=form)
+
+
+@auth.route('/change_email', methods=['GET', 'POST'])
+@login_required(redirect_to='auth.login')
+def change_email_request():
+    user = g.user
+    form = ChangeEmailForm()
+    if form.validate_on_submit():
+        if user.verify_password(form.password.data):
+            new_email = form.email.data
+            token = user.generate_change_mail_token(new_email)
+            send_email(new_email, "Confirm your email address",
+                       "auth/email/change_email", user=user, token=token)
+            flash("An email with instructions to confirm was sent")
+            return redirect(url_for('main.index'))
+        else:
+            flash("Invalid email or password.")
+    return render_template("auth/change_email.html", form=form)
+
+
+@auth.route('/change_email/<token>')
+@login_required(redirect_to='auth.login')
+def change_email(token):
+    user = g.user
+    if user.change_email(token):
+        flash("Your email address has been updated.")
+    else:
+        flash("Invalid request.")
+    return redirect(url_for('main.index'))

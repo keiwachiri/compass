@@ -340,6 +340,77 @@ class ChangePasswordTest(ControllerTest):
             self.assertTrue(self.u.verify_password('new_password'))
 
 
+class ChangeEmailRequestTest(ControllerTest):
+    def test_change_email_request_renders_template_with_form_on_GET(self):
+        u = User(username='user', password='password', email='mail@mail.com')
+        with self.app.test_client() as c:
+            g.user = u
+            resp = c.get(url_for('auth.change_email_request'))
+            self.assertTemplateUsed('auth/change_email.html')
+
+    def test_change_email_request_redirects_to_main_on_POST(self):
+        u = User(username='user', password='password', email='mail@mail.com')
+        with self.app.test_client() as c:
+            g.user = u
+            resp = c.post(url_for('auth.change_email_request'),
+                          data={'email': 'mail_new@mail.com',
+                                'password': 'password'})
+            # NOTE - the other ways to check if response was successful is to
+            # check sent emails or hardcoded flash message
+            self.assertRedirects(resp, url_for('main.index'))
+
+    def test_change_email_request_renders_form_on_invalid_POST_requests(self):
+        u = User(username='user', password='password', email='mail@mail.com')
+        u2 = User(username='user2', password='password', email='m2@mail.com')
+        db.session.add_all([u, u2])
+        db.session.commit()
+        with self.app.test_client() as c:
+            g.user = u
+            resp = c.post(url_for('auth.change_email_request'),
+                    data={'email': 'm2@mail.com', 'password': 'password'})
+            self.assertTemplateUsed('auth/change_email.html')
+            resp = c.post(url_for('auth.change_email_request'),
+                    data={'email': 'mail2@mail.com', 'password': 'wrong_pass'})
+            self.assertTemplateUsed('auth/change_email.html')
+
+
+class ChangeEmailTest(ControllerTest):
+    def test_change_email_changes_email_on_good_request(self):
+        u = User(username='user', password='password', email='mail@mail.com')
+        db.session.add(u)
+        db.session.commit()
+        token = u.generate_change_mail_token(new_email='new_mail@mail.com')
+        with self.app.test_client() as c:
+            g.user = u
+            resp = c.get(url_for('auth.change_email', token=token))
+            self.assertEqual(u.email, 'new_mail@mail.com')
+            self.assertRedirects(resp, url_for('main.index'))
+
+    def test_change_email_redirects_to_main_index_on_expired_token(self):
+        u = User(username='user', password='password', email='mail@mail.com')
+        db.session.add(u)
+        db.session.commit()
+        token = u.generate_change_mail_token(new_email='new_mail@mail.com',
+                                             expiration=1)
+        time.sleep(2)
+        with self.app.test_client() as c:
+            g.user = u
+            resp = c.get(url_for("auth.change_email", token=token))
+            self.assertNotEqual(u.email, 'new_mail@mail.com')
+            self.assertRedirects(resp, url_for('main.index'))
+
+    def test_change_email_redirects_to_main_index_on_wrong_token(self):
+        u = User(username='user', password='password', email='mail@mail.com')
+        u2 = User(username='user2', password='password', email='m2@mail.com')
+        db.session.add_all([u, u2])
+        db.session.commit()
+        token = u2.generate_change_mail_token(new_email='new_email@mail.com')
+        with self.app.test_client() as c:
+            g.user = u
+            resp = c.get(url_for('auth.change_email', token=token))
+            self.assertNotEqual(u.email, 'new_email@mail.com')
+            self.assertRedirects(resp, url_for('main.index'))
+
 
 if __name__ == "__main__":
     unittest.main()
