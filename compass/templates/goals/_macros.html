@@ -1,0 +1,14 @@
+{% import "bootstrap/wtf.html" as wtf %}
+
+{% macro goal_form(form, goal=None, method="POST", action="create") %}
+<form class="form" method="{{ method }}">
+  {{ form.hidden_tag() }}
+  {{ wtf.form_field(form.title)}}
+  {{ wtf.form_field(form.description)}}
+  {{ wtf.form_field(form.target_time)}}
+  {{ wtf.form_field(form.difficulty)}}
+  {{ wtf.form_field(form.priority)}}
+  <button type="submit" value="submit" class="btn btn-primary">Create Goal</button>
+  <button type="reset" class="btn btn-info">Reset</button>
+</form>
+{% endmacro %}

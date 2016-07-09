@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% import "bootstrap/wtf.html" as wtf %}
+{% import "goals/_macros.html" as macros %}
+
+{% block title %}Compass - Your Goals{% endblock %}
+
+{% block page_content %}
+<div class="page-header">
+  <h1>Hey {{ user.username }}, here are your goals!</h1>
+</div>
+<div class="row">
+  <div class="col-md-8">
+    {% for goal in goals %}
+      <div class="panel panel-primary">
+        <div class="panel-heading">
+          <p>
+            {{ goal.title }}
+            {% if goal.target_time %}
+              <span class="pull-right">Deadline: {{ goal.target_time }}</span>
+            {% endif %}
+          </p>
+        </div>
+        <div class="panel-body">
+          {{ goal.description }}
+        </div>
+        <div class="panel-footer">
+          <a href="#" class="btn btn-primary">Done</a>
+          <button class="btn btn-info" data-toggle="modal"
+              data-target="#GoalModal{{ goal.id }}">Edit</button>
+          <a href="{{ url_for('goals.delete_goal', id=goal.id)}}"
+              class="btn btn-danger">Delete</a>
+        </div>
+      </div>
+      <div class="modal fade" id="GoalModal{{ goal.id }}">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <button type="button" class="close" data-dismiss="modal">&times;
+              </button>
+              <h5 class="modal-title">Edit Goal!</h5>
+            </div>
+            <div class="modal-body">
+              {{ macros.goal_form(form, goal) }}
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-default"
+                  data-dismiss="modal">Close</button>
+              <button type="button" class="btn btn-primary">
+              Save Changes</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% else %}
+      <p>You have not set any goals yet!</p>
+    {% endfor %}
+  </div>
+
+  <div class="col-md-4">
+    <div class="goal_form">
+      <h3>Create new Goal!</h3>
+      {{ macros.goal_form(form)}}
+    </div>
+  </div>
+</div>
+{% endblock %}
