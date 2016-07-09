@@ -20,6 +20,9 @@ class User(db.Model):
     member_since = db.Column(db.DateTime(), default=datetime.utcnow)
     confirmed = db.Column(db.Boolean, default=False)
 
+    # Relationships
+    goals = db.relationship('Goal', backref='user')
+
     @property
     def password(self):
         raise AttributeError("Password is not a readable attribute")
