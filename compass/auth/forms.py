@@ -58,3 +58,14 @@ class ChangePasswordForm(Form):
                         EqualTo('password2', message='Passwords must match')])
     password2 = PasswordField("Confirm Password", validators=[Required()])
     submit = SubmitField("Change Password")
+
+
+class ChangeEmailForm(Form):
+    email = StringField("New Email", validators=[Required(), Length(1, 64),
+                                                 Email()])
+    password = PasswordField("Password", validators=[Required()])
+    submit = SubmitField("Update Email Address")
+
+    def validate_email(self, field):
+        if User.query.filter_by(email=field.data).first():
+            raise ValidationError("Email already registered.")
